@@ -39,10 +39,16 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\lib\log4net.dll</HintPath>
     </Reference>
+    <Reference Include="MessageGearsSDK, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\messagegears-csharp-sdk\MessageGearsSDK\bin\Release\MessageGearsSDK.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Xml" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
     <Compile Include="MessageGearsAwsProperties.cs" />
     <Compile Include="MessageGearsAwsClient.cs" />
+    <Compile Include="MessageGearsAwsQueuePoller.cs" />
   </ItemGroup>
 </Project>
