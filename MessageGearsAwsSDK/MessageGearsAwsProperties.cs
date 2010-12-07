@@ -36,6 +36,11 @@ namespace MessageGearsAws
 		public int SQSVisibilityTimeoutSecs { get; set; }
 
 		/// <summary>
+		/// Sets the default timout for copying a file to S3.
+		/// </summary>
+		public int S3PutTimeoutSecs { get; set; }
+
+		/// <summary>
 		/// Dumps out all of the properties.
 		/// </summary>
 		/// <returns>
@@ -47,8 +52,9 @@ namespace MessageGearsAws
 			dump = dump + " MessageGearsAWSAccountId=" + MessageGearsAWSAccountId;
 			dump = dump + " MyAWSAccountKey=" + MyAWSAccountKey;
 			dump = dump + " MyAWSSecretKey=" + "<hidden>";
+			dump = dump + " SQSVisibilityTimeoutSecs=" + SQSVisibilityTimeoutSecs;
+			dump = dump + " S3PutTimeoutSecs=" + S3PutTimeoutSecs;
 			return dump;
 		}
 	}
 }
-

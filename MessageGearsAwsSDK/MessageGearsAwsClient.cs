@@ -8,6 +8,7 @@ using Amazon.Auth.AccessControlPolicy;
 using log4net;
 
 using System;
+using System.IO;
 
 namespace MessageGearsAws
 {
@@ -34,7 +35,59 @@ namespace MessageGearsAws
 			this.s3 = new AmazonS3Client(properties.MyAWSAccountKey, properties.MyAWSSecretKey);
 			log.Info("MessageGears AWS client initialized");
 		}
-						
+
+		/// <summary>
+		/// Copies an InputStream to Amazon S3 and grants READ-ONLY access to MessageGears.
+		/// </summary>
+		/// <param name="stream">
+		/// An input stream for the data to be copied to S3.
+		/// </param>
+		/// <param name="bucketName">
+		/// The name of the S3 bucket where the file will be copied.
+		/// </param>
+		/// <param name="key">
+		/// The S3 key of the file to be created.
+		/// </param>
+		public void PutS3File(Stream stream, String bucketName, String key)
+		{
+			// Check to see if the file already exists in S3
+			ListObjectsRequest listRequest = new ListObjectsRequest().WithBucketName(bucketName).WithPrefix(key);
+			ListObjectsResponse listResponse = s3.ListObjects(listRequest);
+			if(listResponse.S3Objects.Count > 0)
+			{
+				String message = "File " + key + " already exists.";
+				log.Warn("PutS3File failed: " + message);
+				throw new ApplicationException(message);
+			}
+			
+			// Copy a file to S3
+			PutObjectRequest request = new PutObjectRequest().WithKey(key).WithBucketName(bucketName).WithTimeout(properties.S3PutTimeoutSecs * 1000);
+			request.WithInputStream(stream);
+			s3.PutObject(request);
+			setS3Permission(bucketName, key);
+			
+			log.Info("PutS3File successful: " + key);
+		}
+		
+		private void setS3Permission(String bucketName, String key)
+		{
+			// Get the ACL for the file and retrieve the owner ID (not sure how to get it otherwise).
+			GetACLRequest getAclRequest = new GetACLRequest().WithBucketName(bucketName).WithKey(key);
+			GetACLResponse aclResponse = s3.GetACL(getAclRequest);
+			Owner owner = aclResponse.AccessControlList.Owner;
+			
+			// Create a grantee as the MessageGears account
+			S3Grantee grantee = new S3Grantee().WithCanonicalUser(properties.MessageGearsAWSCanonicalId, "MessageGears");
+
+			// Create an new ACL for the file and give MessageGears Read-only access, and the owner full control.
+			S3AccessControlList acl = new S3AccessControlList().WithOwner(owner);
+			acl.AddGrant(grantee, S3Permission.READ);
+			grantee = new S3Grantee().WithCanonicalUser(owner.Id, "MyAWSId");
+			acl.AddGrant(grantee, S3Permission.FULL_CONTROL);
+			SetACLRequest aclRequest = new SetACLRequest().WithACL(acl).WithBucketName(bucketName).WithKey(key);
+			s3.SetACL(aclRequest);
+		}
+		
 		/// <summary>
 		/// Copies a file to Amazon S3 and grants READ-ONLY access to MessageGears.
 		/// </summary>
@@ -60,24 +113,9 @@ namespace MessageGearsAws
 			}
 			
 			// Copy a file to S3
-			PutObjectRequest request = new PutObjectRequest().WithKey(key).WithFilePath(fileName).WithBucketName(bucketName);
+			PutObjectRequest request = new PutObjectRequest().WithKey(key).WithFilePath(fileName).WithBucketName(bucketName).WithTimeout(properties.S3PutTimeoutSecs * 1000);
 			s3.PutObject(request);
-			
-			// Get the ACL for the file and retrieve the owner ID (not sure how to get it otherwise).
-			GetACLRequest getAclRequest = new GetACLRequest().WithBucketName(bucketName).WithKey(key);
-			GetACLResponse aclResponse = s3.GetACL(getAclRequest);
-			Owner owner = aclResponse.AccessControlList.Owner;
-			
-			// Create a grantee as the MessageGears account
-			S3Grantee grantee = new S3Grantee().WithCanonicalUser(properties.MessageGearsAWSCanonicalId, "MessageGears");
-
-			// Create an new ACL for the file and give MessageGears Read-only access, and the owner full control.
-			S3AccessControlList acl = new S3AccessControlList().WithOwner(owner);
-			acl.AddGrant(grantee, S3Permission.READ);
-			grantee = new S3Grantee().WithCanonicalUser(owner.Id, "MyAWSId");
-			acl.AddGrant(grantee, S3Permission.FULL_CONTROL);
-			SetACLRequest aclRequest = new SetACLRequest().WithACL(acl).WithBucketName(bucketName).WithKey(key);
-			s3.SetACL(aclRequest);
+			setS3Permission(bucketName, key);
 			
 			log.Info("PutS3File successful: " + fileName);
 		}
