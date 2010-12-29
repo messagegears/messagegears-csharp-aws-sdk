@@ -156,10 +156,19 @@ namespace MessageGearsAws
 			CreateQueueResponse response = sqs.CreateQueue(request);
 			
 			addQueuePermission(response.CreateQueueResult.QueueUrl);
+			setMaximumMessageSize(response.CreateQueueResult.QueueUrl);
 			
 			log.Info("Create queue successful: " + queueName);
 			
 			return response.CreateQueueResult.QueueUrl;
+		}
+		
+		private void setMaximumMessageSize(String queueUrl)
+		{
+			Amazon.SQS.Model.Attribute[] attrs = new Amazon.SQS.Model.Attribute[1];
+			attrs[0] = new Amazon.SQS.Model.Attribute().WithName("MaximumMessageSize").WithValue("65536");
+			SetQueueAttributesRequest request = new SetQueueAttributesRequest().WithQueueUrl(queueUrl).WithAttribute(attrs);
+			sqs.SetQueueAttributes(request);
 		}
 		
 		private void addQueuePermission(String queueUrl)
@@ -172,5 +181,6 @@ namespace MessageGearsAws
 		
 			sqs.AddPermission(permissionRequest);
 		}
+
 	}		
 }

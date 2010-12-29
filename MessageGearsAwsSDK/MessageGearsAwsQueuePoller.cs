@@ -60,6 +60,7 @@ namespace MessageGearsAws
 			this.receiveMessageRequest = new ReceiveMessageRequest ()
 				.WithQueueUrl (mgProps.MyAWSEventQueueUrl)
 				.WithMaxNumberOfMessages (mgProps.SQSMaxBatchSize)
+				.WithAttributeName("ApproximateReceiveCount")
 				.WithVisibilityTimeout(mgProps.SQSVisibilityTimeoutSecs);
 			this.deleteMessageRequest = new DeleteMessageRequest().WithQueueUrl(mgProps.MyAWSEventQueueUrl);
 		}
@@ -116,7 +117,6 @@ namespace MessageGearsAws
 			
 			try {
 				
-				log.Info("receiveMessageRequest: " + receiveMessageRequest);
 				ReceiveMessageResponse receiveMessageResponse = sqs.ReceiveMessage (receiveMessageRequest);
 
 				if (receiveMessageResponse.IsSetReceiveMessageResult ()) {
@@ -174,6 +174,18 @@ namespace MessageGearsAws
 				log.Debug("Received SQS message: " + message.MessageId + ": " + message.Body);
 				items = (ActivityItems)serializer.Deserialize (sr);
 			}
+			
+			// Print out the message metadata
+			foreach (Amazon.SQS.Model.Attribute attr in message.Attribute) {
+				if(attr.Name.Equals("ApproximateReceiveCount")) {
+					if(Int16.Parse(attr.Value) == 1) {
+						log.Info(attr.Name + ": " + attr.Value);
+					} else {
+						log.Warn(attr.Name + ": " + attr.Value);
+					}
+				}
+			}
+
 			return items;
 		}
 		
