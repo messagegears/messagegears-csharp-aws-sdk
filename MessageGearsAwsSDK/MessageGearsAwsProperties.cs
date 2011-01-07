@@ -5,7 +5,7 @@ namespace MessageGearsAws
 	/// Class used to store all of the properties and credentials needed to interface with your Amazon Web Services Account.
 	/// </summary>
 	public class MessageGearsAwsProperties
-	{
+	{		
 		/// <summary>
 		/// The Amazon Web Services Canonical Id for the MessageGears AWS account.
 		/// This value is needed to assign S3 permissions to the MessageGears account.
@@ -40,6 +40,14 @@ namespace MessageGearsAws
 		/// </summary>
 		public int S3PutTimeoutSecs { get; set; }
 
+				
+		public MessageGearsAwsProperties() {
+			MessageGearsAWSCanonicalId = "2dd8e53f1a8e4dfe3a6893d1229635b4915661d95f5283df75215779ce462819";	
+			MessageGearsAWSAccountId="406967126799";
+			SQSVisibilityTimeoutSecs=600;
+			S3PutTimeoutSecs=900;
+		}
+		
 		/// <summary>
 		/// Dumps out all of the properties.
 		/// </summary>
