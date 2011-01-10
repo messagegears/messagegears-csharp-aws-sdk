@@ -28,10 +28,10 @@ namespace MessageGearsAws
 	{
 		static readonly ILog log = LogManager.GetLogger(typeof(MessageGearsAwsQueuePoller));
 		private AmazonSQS sqs;
-		private MessageGearsProperties mgProps;
 		private ReceiveMessageRequest receiveMessageRequest;
 		private DeleteMessageRequest deleteMessageRequest;
 		private MessageGearsListener listener;
+		private MessageGearsAwsProperties props;
 		private bool isRunning = false;
 		int emptyQueueDelayMillis;
 		
@@ -50,19 +50,19 @@ namespace MessageGearsAws
 		/// <param name="myAwsSecretKey">
 		/// Your AWS Secret Key
 		/// </param>
-		public MessageGearsAwsQueuePoller(MessageGearsProperties mgProps, MessageGearsAwsProperties awsProps, MessageGearsListener listener)
+		public MessageGearsAwsQueuePoller(MessageGearsAwsProperties props, MessageGearsListener listener)
 		{
-			this.mgProps = mgProps;
-			this.emptyQueueDelayMillis = mgProps.EmptyQueuePollingDelaySecs * 1000;
+			this.props = props;
+			this.emptyQueueDelayMillis = props.EmptyQueuePollingDelaySecs * 1000;
 			this.listener = listener;
-			AmazonSQSConfig config = new AmazonSQSConfig().WithMaxErrorRetry(mgProps.SQSMaxErrorRetry);
-			this.sqs = AWSClientFactory.CreateAmazonSQSClient (awsProps.MyAWSAccountKey, awsProps.MyAWSSecretKey, config);
+			AmazonSQSConfig config = new AmazonSQSConfig().WithMaxErrorRetry(props.SQSMaxErrorRetry);
+			this.sqs = AWSClientFactory.CreateAmazonSQSClient (props.MyAWSAccountKey, props.MyAWSSecretKey, config);
 			this.receiveMessageRequest = new ReceiveMessageRequest ()
-				.WithQueueUrl (mgProps.MyAWSEventQueueUrl)
-				.WithMaxNumberOfMessages (mgProps.SQSMaxBatchSize)
+				.WithQueueUrl (props.MyAWSEventQueueUrl)
+				.WithMaxNumberOfMessages (props.SQSMaxBatchSize)
 				.WithAttributeName("ApproximateReceiveCount")
-				.WithVisibilityTimeout(mgProps.SQSVisibilityTimeoutSecs);
-			this.deleteMessageRequest = new DeleteMessageRequest().WithQueueUrl(mgProps.MyAWSEventQueueUrl);
+				.WithVisibilityTimeout(props.SQSVisibilityTimeoutSecs);
+			this.deleteMessageRequest = new DeleteMessageRequest().WithQueueUrl(props.MyAWSEventQueueUrl);
 		}
 		
 		/// <summary>
@@ -71,9 +71,9 @@ namespace MessageGearsAws
 		public void Start ()
 		{
 			isRunning = true;
-			log.Info("Starting queue poller(s) with the following properties: " + mgProps.ToString());
+			log.Info("Starting queue poller(s) with the following properties: " + props.ToString());
 
-			for(int i=1; i <= mgProps.NumberOfEventPollerThreads; i++)
+			for(int i=1; i <= props.NumberOfEventPollerThreads; i++)
 			{
 				log.Info("Starting queue poller thread # " + i);
 				Thread poller = new Thread (this.Run);
@@ -100,7 +100,7 @@ namespace MessageGearsAws
 				numReceived = ProcessMessage();
 				if(numReceived == 0)
 				{
-					log.Info(string.Format("Poller received no items.  Thread will sleep for {0} seconds.", mgProps.EmptyQueuePollingDelaySecs));
+					log.Info(string.Format("Poller received no items.  Thread will sleep for {0} seconds.", props.EmptyQueuePollingDelaySecs));
 					Thread.Sleep(emptyQueueDelayMillis);
 				}
 				else
