@@ -72,6 +72,7 @@ namespace MessageGearsAws
 		/// </summary>
 		public int S3PutTimeoutSecs { get; set; }
 
+
 		/// <summary>
 		/// Set the default values for most of the properties.
 		/// </summary>				

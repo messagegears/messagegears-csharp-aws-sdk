@@ -9,6 +9,10 @@ using log4net;
 
 using System;
 using System.IO;
+using System.Threading;
+
+
+using System.IO.Compression;
 
 namespace MessageGearsAws
 {
@@ -35,9 +39,20 @@ namespace MessageGearsAws
 			this.s3 = new AmazonS3Client(properties.MyAWSAccountKey, properties.MyAWSSecretKey);
 			log.Info("MessageGears AWS client initialized");
 		}
+		
+		public void CompressFile(String outputFileName, String inputFileName) {
+			FileStream inStream = new FileStream(inputFileName, FileMode.Open, FileAccess.Read);
+			
+			FileStream outStream = new FileStream(outputFileName, FileMode.Create, FileAccess.Write);
+			GZipStream compressedStream = new GZipStream(outStream, CompressionMode.Compress);
+			StreamWriter writer = new StreamWriter(compressedStream);
+			writer.Write(inStream);
+			writer.Close();
+			outStream.Close();
+		}		
 
 		/// <summary>
-		/// Copies an InputStream to Amazon S3 and grants READ-ONLY access to MessageGears.
+		/// Copies an InputStream to Amazon S3 and grants access to MessageGears.
 		/// </summary>
 		/// <param name="stream">
 		/// An input stream for the data to be copied to S3.
@@ -52,7 +67,7 @@ namespace MessageGearsAws
 		{
 			// Check to see if the file already exists in S3
 			ListObjectsRequest listRequest = new ListObjectsRequest().WithBucketName(bucketName).WithPrefix(key);
-			ListObjectsResponse listResponse = s3.ListObjects(listRequest);
+			ListObjectsResponse listResponse = listFiles(listRequest);
 			if(listResponse.S3Objects.Count > 0)
 			{
 				String message = "File " + key + " already exists.";
@@ -63,29 +78,10 @@ namespace MessageGearsAws
 			// Copy a file to S3
 			PutObjectRequest request = new PutObjectRequest().WithKey(key).WithBucketName(bucketName).WithTimeout(properties.S3PutTimeoutSecs * 1000);
 			request.WithInputStream(stream);
-			s3.PutObject(request);
-			setS3Permission(bucketName, key);
+			putWithRetry(request);
+			setS3PermissionsWithRetry(bucketName, key);
 			
 			log.Info("PutS3File successful: " + key);
-		}
-		
-		private void setS3Permission(String bucketName, String key)
-		{
-			// Get the ACL for the file and retrieve the owner ID (not sure how to get it otherwise).
-			GetACLRequest getAclRequest = new GetACLRequest().WithBucketName(bucketName).WithKey(key);
-			GetACLResponse aclResponse = s3.GetACL(getAclRequest);
-			Owner owner = aclResponse.AccessControlList.Owner;
-			
-			// Create a grantee as the MessageGears account
-			S3Grantee grantee = new S3Grantee().WithCanonicalUser(properties.MessageGearsAWSCanonicalId, "MessageGears");
-
-			// Create an new ACL for the file and give MessageGears Read-only access, and the owner full control.
-			S3AccessControlList acl = new S3AccessControlList().WithOwner(owner);
-			acl.AddGrant(grantee, S3Permission.READ);
-			grantee = new S3Grantee().WithCanonicalUser(owner.Id, "MyAWSId");
-			acl.AddGrant(grantee, S3Permission.FULL_CONTROL);
-			SetACLRequest aclRequest = new SetACLRequest().WithACL(acl).WithBucketName(bucketName).WithKey(key);
-			s3.SetACL(aclRequest);
 		}
 		
 		/// <summary>
@@ -104,7 +100,7 @@ namespace MessageGearsAws
 		{
 			// Check to see if the file already exists in S3
 			ListObjectsRequest listRequest = new ListObjectsRequest().WithBucketName(bucketName).WithPrefix(key);
-			ListObjectsResponse listResponse = s3.ListObjects(listRequest);
+			ListObjectsResponse listResponse = listFiles(listRequest);
 			if(listResponse.S3Objects.Count > 0)
 			{
 				String message = "File " + fileName + " already exists.";
@@ -114,8 +110,8 @@ namespace MessageGearsAws
 			
 			// Copy a file to S3
 			PutObjectRequest request = new PutObjectRequest().WithKey(key).WithFilePath(fileName).WithBucketName(bucketName).WithTimeout(properties.S3PutTimeoutSecs * 1000);
-			s3.PutObject(request);
-			setS3Permission(bucketName, key);
+			putWithRetry(request);
+			setS3PermissionsWithRetry(bucketName, key);
 			
 			log.Info("PutS3File successful: " + fileName);
 		}
@@ -133,9 +129,8 @@ namespace MessageGearsAws
 		{
 			// Copy a file to S3
 			DeleteObjectRequest request = new DeleteObjectRequest().WithBucketName(bucketName).WithKey(key);
-			s3.DeleteObject(request);
+			deleteWithRetry(request);
 			log.Info("DeleteS3File successful: " + bucketName + "/" + key);
-
 		}
 		
 		/// <summary>
@@ -181,6 +176,127 @@ namespace MessageGearsAws
 		
 			sqs.AddPermission(permissionRequest);
 		}
-
+		
+		private ListObjectsResponse listFiles(ListObjectsRequest request) 
+		{
+			// Retry list request up to five times
+			for (int i = 0; i<5; i++) 
+			{
+				try 
+				{
+					// Attempt to put the object
+					ListObjectsResponse response = s3.ListObjects(request);
+					return response;
+				} 
+				catch (AmazonS3Exception exception) 
+				{
+					log.Info("Failed to retrieve file list from S3: " + exception.ToString());
+					Thread.Sleep(1000);
+				}
+				catch (Exception e) {
+					log.Info("Failed to retrieve file list from S3: " + e.ToString());
+					Thread.Sleep(1000);
+				}
+			}
+			
+			throw new AmazonS3Exception("Failed list objects on S3");
+		}
+		
+		private void putWithRetry(PutObjectRequest request) 
+		{
+			// Retry put request up to five times
+			for (int i = 0; i<5; i++) 
+			{
+				try 
+				{
+					// Attempt to put the object
+					s3.PutObject(request);
+					log.Info("Successfully uploaded file to S3: " + request.ToString());
+					return;
+				} 
+				catch (AmazonS3Exception exception) 
+				{
+					log.Info("Failed to upload file to S3: " + exception.ToString());
+					Thread.Sleep(1000);
+				}
+				catch (Exception e) {
+					log.Info("Failed to upload file to S3: " + e.ToString());
+					Thread.Sleep(1000);
+				}
+			}
+			
+			throw new AmazonS3Exception("Failed to upload file to S3");
+		}
+		
+		private void deleteWithRetry(DeleteObjectRequest request) 
+		{
+			// Retry delete request up to five times
+			for (int i = 0; i<5; i++) 
+			{
+				try 
+				{
+					// Attempt to delete the object
+					s3.DeleteObject(request);
+					log.Info("Successfully deleted file on S3: " + request.ToString());
+					return;
+				} 
+				catch (AmazonS3Exception exception) 
+				{
+					log.Debug("Failed to deleted file from S3: " + exception.ToString());
+					Thread.Sleep(1000);
+				}
+				catch (Exception e) {
+					log.Debug("Failed to deleted file from S3: " + e.ToString());
+					Thread.Sleep(1000);
+				}
+			}
+			
+			throw new AmazonS3Exception("Failed to deleted file from S3");
+		}
+		
+		private void setS3PermissionsWithRetry(String bucketName, String key) 
+		{
+			// Retry setting permissions up to five times
+			for (int i = 0; i<5; i++) 
+			{
+				try 
+				{
+					// Set permissions
+					setS3Permission(bucketName, key);
+					return;
+				} 
+				catch (AmazonS3Exception exception) 
+				{
+					log.Info("Failed to set permissions for file on S3: " + exception.ToString());
+					Thread.Sleep(1000);
+				}
+				catch (Exception e) {
+					log.Info("Failed to set permissions for file to S3: " + e.ToString());
+					Thread.Sleep(1000);
+				}
+			}
+		}
+		
+		private void setS3Permission(String bucketName, String key)
+		{
+			// Get the ACL for the file and retrieve the owner ID (not sure how to get it otherwise).
+			GetACLRequest getAclRequest = new GetACLRequest().WithBucketName(bucketName).WithKey(key);
+			GetACLResponse aclResponse = s3.GetACL(getAclRequest);
+			Owner owner = aclResponse.AccessControlList.Owner;
+			
+			// Create a grantee as the MessageGears account
+			S3Grantee grantee = new S3Grantee().WithCanonicalUser(properties.MessageGearsAWSCanonicalId, "MessageGears");  
+			
+			// Grant MessageGears Read-only access
+			S3Permission messageGearsPermission = S3Permission.READ;
+			S3AccessControlList acl = new S3AccessControlList().WithOwner(owner);
+			acl.AddGrant(grantee, messageGearsPermission);
+			
+			// Create a new ACL granting the owner full control.
+			grantee = new S3Grantee().WithCanonicalUser(owner.Id, "MyAWSId");
+			acl.AddGrant(grantee, S3Permission.FULL_CONTROL);
+			SetACLRequest aclRequest = new SetACLRequest().WithACL(acl).WithBucketName(bucketName).WithKey(key);
+			s3.SetACL(aclRequest);
+		}
 	}		
 }
