@@ -42,13 +42,10 @@ namespace MessageGearsAws
 		
 		public void CompressFile(String outputFileName, String inputFileName) {
 			FileStream inStream = new FileStream(inputFileName, FileMode.Open, FileAccess.Read);
-			
 			FileStream outStream = new FileStream(outputFileName, FileMode.Create, FileAccess.Write);
 			GZipStream compressedStream = new GZipStream(outStream, CompressionMode.Compress);
-			StreamWriter writer = new StreamWriter(compressedStream);
-			writer.Write(inStream);
-			writer.Close();
-			outStream.Close();
+			CopyStream(inStream, compressedStream);
+			compressedStream.Close();
 		}		
 
 		/// <summary>
@@ -129,8 +126,15 @@ namespace MessageGearsAws
 		{
 			// Copy a file to S3
 			DeleteObjectRequest request = new DeleteObjectRequest().WithBucketName(bucketName).WithKey(key);
-			deleteWithRetry(request);
-			log.Info("DeleteS3File successful: " + bucketName + "/" + key);
+			try 
+			{
+				deleteWithRetry(request);
+				log.Info("DeleteS3File successful: " + bucketName + "/" + key);
+			} 
+			catch(Exception e) 
+			{
+				log.Info("DeleteS3File failed: " + bucketName + "/" + key + " : " + e.ToString());	
+			}
 		}
 		
 		/// <summary>
@@ -297,6 +301,16 @@ namespace MessageGearsAws
 			acl.AddGrant(grantee, S3Permission.FULL_CONTROL);
 			SetACLRequest aclRequest = new SetACLRequest().WithACL(acl).WithBucketName(bucketName).WithKey(key);
 			s3.SetACL(aclRequest);
+		}
+		
+		public static void CopyStream(Stream input, Stream output)
+		{
+		    byte[] buffer = new byte[8 * 1024];
+		    int len;
+		    while ( (len = input.Read(buffer, 0, buffer.Length)) > 0)
+		    {
+		        output.Write(buffer, 0, len);
+		    }    
 		}
 	}		
 }
