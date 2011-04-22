@@ -40,12 +40,23 @@ namespace MessageGearsAws
 			log.Info("MessageGears AWS client initialized");
 		}
 		
-		public void CompressFile(String outputFileName, String inputFileName) {
+		/// <summary>
+		/// Used to compress a given file into a .gz file.
+		/// </summary>
+		/// <param name="inputFileName">
+		/// The path to and file name to be compressed.
+		/// </param>
+		/// <returns>
+		/// The path to and file name of the newly created compressed file.
+		/// </returns>
+		public String CompressFile(String inputFileName) {
+			String outputFileName = inputFileName.Replace(".xml",".gz");
 			FileStream inStream = new FileStream(inputFileName, FileMode.Open, FileAccess.Read);
 			FileStream outStream = new FileStream(outputFileName, FileMode.Create, FileAccess.Write);
 			GZipStream compressedStream = new GZipStream(outStream, CompressionMode.Compress);
 			CopyStream(inStream, compressedStream);
 			compressedStream.Close();
+			return outputFileName;
 		}		
 
 		/// <summary>
