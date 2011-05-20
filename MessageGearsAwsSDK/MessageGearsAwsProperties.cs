@@ -71,6 +71,16 @@ namespace MessageGearsAws
 		/// Sets the default timout for copying a file to S3.
 		/// </summary>
 		public int S3PutTimeoutSecs { get; set; }
+		
+		/// <summary>
+		/// Sets the default number of retries for an S3 operation.
+		/// </summary>
+		public int S3MaxErrorRetry { get; set; }
+		
+		/// <summary>
+		/// Sets the default wait before retrying an S3 operation, in milliseconds.
+		/// </summary>
+		public int S3RetryDelayInterval { get; set; }
 
 
 		/// <summary>
@@ -85,6 +95,8 @@ namespace MessageGearsAws
 			EmptyQueuePollingDelaySecs=30;
 			SQSMaxBatchSize=1;
 			SQSVisibilityTimeoutSecs=600;
+			S3MaxErrorRetry=5;
+			S3RetryDelayInterval=1000;
 		}
 		
 		/// <summary>
@@ -107,6 +119,8 @@ namespace MessageGearsAws
 			dump = dump + " SQSMaxBatchSize=" + SQSMaxBatchSize;
 			dump = dump + " SQSMaxErrorRetry=" + SQSMaxErrorRetry;
 			dump = dump + " S3PutTimeoutSecs=" + S3PutTimeoutSecs;
+			dump = dump + " S3MaxErrorRety=" + S3MaxErrorRetry;
+			dump = dump + " S3RetryDelayInterval=" + S3RetryDelayInterval;
 			return dump;
 		}
 	}

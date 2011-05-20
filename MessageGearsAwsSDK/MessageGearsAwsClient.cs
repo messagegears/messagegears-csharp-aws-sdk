@@ -195,7 +195,7 @@ namespace MessageGearsAws
 		private ListObjectsResponse listFiles(ListObjectsRequest request) 
 		{
 			// Retry list request up to five times
-			for (int i = 0; i<5; i++) 
+			for (int i = 0; i<properties.S3MaxErrorRetry; i++) 
 			{
 				try 
 				{
@@ -206,11 +206,11 @@ namespace MessageGearsAws
 				catch (AmazonS3Exception exception) 
 				{
 					log.Info("Failed to retrieve file list from S3: " + exception.ToString());
-					Thread.Sleep(1000);
+					Thread.Sleep(properties.S3RetryDelayInterval);
 				}
 				catch (Exception e) {
 					log.Info("Failed to retrieve file list from S3: " + e.ToString());
-					Thread.Sleep(1000);
+					Thread.Sleep(properties.S3RetryDelayInterval);
 				}
 			}
 			
@@ -220,7 +220,7 @@ namespace MessageGearsAws
 		private void putWithRetry(PutObjectRequest request) 
 		{
 			// Retry put request up to five times
-			for (int i = 0; i<5; i++) 
+			for (int i = 0; i<properties.S3MaxErrorRetry; i++) 
 			{
 				try 
 				{
@@ -232,11 +232,11 @@ namespace MessageGearsAws
 				catch (AmazonS3Exception exception) 
 				{
 					log.Info("Failed to upload file to S3: " + exception.ToString());
-					Thread.Sleep(1000);
+					Thread.Sleep(properties.S3RetryDelayInterval);
 				}
 				catch (Exception e) {
 					log.Info("Failed to upload file to S3: " + e.ToString());
-					Thread.Sleep(1000);
+					Thread.Sleep(properties.S3RetryDelayInterval);
 				}
 			}
 			
@@ -246,7 +246,7 @@ namespace MessageGearsAws
 		private void deleteWithRetry(DeleteObjectRequest request) 
 		{
 			// Retry delete request up to five times
-			for (int i = 0; i<5; i++) 
+			for (int i = 0; i<properties.S3MaxErrorRetry; i++) 
 			{
 				try 
 				{
@@ -258,11 +258,11 @@ namespace MessageGearsAws
 				catch (AmazonS3Exception exception) 
 				{
 					log.Debug("Failed to deleted file from S3: " + exception.ToString());
-					Thread.Sleep(1000);
+					Thread.Sleep(properties.S3RetryDelayInterval);
 				}
 				catch (Exception e) {
 					log.Debug("Failed to deleted file from S3: " + e.ToString());
-					Thread.Sleep(1000);
+					Thread.Sleep(properties.S3RetryDelayInterval);
 				}
 			}
 			
@@ -272,7 +272,7 @@ namespace MessageGearsAws
 		private void setS3PermissionsWithRetry(String bucketName, String key) 
 		{
 			// Retry setting permissions up to five times
-			for (int i = 0; i<5; i++) 
+			for (int i = 0; i<properties.S3MaxErrorRetry; i++) 
 			{
 				try 
 				{
@@ -283,11 +283,11 @@ namespace MessageGearsAws
 				catch (AmazonS3Exception exception) 
 				{
 					log.Info("Failed to set permissions for file on S3: " + exception.ToString());
-					Thread.Sleep(1000);
+					Thread.Sleep(properties.S3RetryDelayInterval);
 				}
 				catch (Exception e) {
 					log.Info("Failed to set permissions for file to S3: " + e.ToString());
-					Thread.Sleep(1000);
+					Thread.Sleep(properties.S3RetryDelayInterval);
 				}
 			}
 		}
