@@ -194,6 +194,7 @@ namespace MessageGearsAws
 		
 		private ListObjectsResponse listFiles(ListObjectsRequest request) 
 		{
+			Exception lastException = null;
 			// Retry list request up to five times
 			for (int i = 0; i<properties.S3MaxErrorRetry; i++) 
 			{
@@ -207,14 +208,18 @@ namespace MessageGearsAws
 				{
 					log.Info("Failed to retrieve file list from S3: " + exception.ToString());
 					Thread.Sleep(properties.S3RetryDelayInterval);
+					lastException = exception;
 				}
 				catch (Exception e) {
 					log.Info("Failed to retrieve file list from S3: " + e.ToString());
 					Thread.Sleep(properties.S3RetryDelayInterval);
+					lastException = e;
 				}
 			}
 			
-			throw new AmazonS3Exception("Failed list objects on S3");
+			log.Error("Failed to list files.");
+			log.Error("Properties: " + properties.ToString());
+			throw lastException;
 		}
 		
 		private void putWithRetry(PutObjectRequest request) 
