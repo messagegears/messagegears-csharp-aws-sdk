@@ -1,1 +1,3 @@
-SDK to assist with common Amazon Web Services tasks associated with MessageGears.
+DEPRECATED - this has been merged with the MessageGears SDK. 
+
+See https://github.com/messagegears/messagegears-csharp-sdk
